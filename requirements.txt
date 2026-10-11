@@ -1,0 +1,7 @@
+streamlit>=1.36
+sentence-transformers>=3.0
+pandas>=2.0
+numpy
+networkx>=3.0
+requests
+einops            # needed by nomic-embed-text

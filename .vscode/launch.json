@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Streamlit: app.py",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "streamlit",
+      "args": ["run", "app.py"],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "justMyCode": true
+    },
+    {
+      "name": "Build index (10k films)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/build_index.py",
+      "args": ["--csv", "data/wiki_movie_plots_deduped.csv", "--n-movies", "10000"],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "console": "integratedTerminal"
+    }
+  ]
+}
