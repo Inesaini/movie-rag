@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from rag_core import INDEX_DIR, STOP, Engine, LLMConfig, answer, log_event, read_log, stem
+from rag_core import CHUNK_ID, CITE_GROUP, INDEX_DIR, STOP, Engine, LLMConfig, answer, log_event, read_log, stem
 
 st.set_page_config(page_title="Tip of the Tongue", page_icon="🎬", layout="wide")
 
@@ -152,7 +152,7 @@ with tab_ask:
         show_info(out["info"], {}, out["timings"])
 
         if out["answer"]:
-            body = re.sub(r"\[(\d+#\d+)\]", r"`[\1]`", out["answer"])
+            body = CITE_GROUP.sub(lambda m: ", ".join(f"`[{i}]`" for i in CHUNK_ID.findall(m.group(1))), out["answer"])
             st.success(body)
             if out["bad_citations"]:
                 st.warning(f"⚠️ The answer cites passages that weren't retrieved: {', '.join(out['bad_citations'])}")

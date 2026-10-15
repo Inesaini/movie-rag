@@ -377,6 +377,11 @@ QUESTION: {question}
 ANSWER:"""
 
 
+# models sometimes group citations, as in [12#0, 12#3], so ids are pulled out of any bracket that holds one
+CHUNK_ID = re.compile(r"\d+#\d+")
+CITE_GROUP = re.compile(r"\[([^\]]*?\d+#\d+[^\]]*)\]")
+
+
 @dataclass
 class LLMConfig:
     backend: str = "ollama"                       # 'ollama' | 'openai' (any OpenAI-compatible server) | 'none'
@@ -420,7 +425,7 @@ def answer(engine: Engine, question: str, cfg: LLMConfig, movie_ids=None, k: int
         out["error"] = f"LLM error: {e}"
         return out
     timings["llm_ms"] = 1000 * (time.perf_counter() - t)
-    cited = set(re.findall(r"\[(\d+#\d+)\]", text))
+    cited = {i for group in CITE_GROUP.findall(text) for i in CHUNK_ID.findall(group)}
     out["answer"] = text
     out["citations"] = sorted(cited)
     out["bad_citations"] = sorted(cited - {c["chunk_id"] for c, _ in hits})
