@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from rag_core import INDEX_DIR, Engine, LLMConfig, answer, log_event, read_log, stem
+from rag_core import INDEX_DIR, STOP, Engine, LLMConfig, answer, log_event, read_log, stem
 
 st.set_page_config(page_title="Tip of the Tongue", page_icon="🎬", layout="wide")
 
@@ -26,17 +26,23 @@ movies = engine.movies
 # ----------------------------------------------------------------------------- helpers
 def highlight(text: str, query: str, max_chars: int = 700) -> str:
     """Escape the passage and wrap words that match the query (after stemming) in <mark>."""
-    q_stems = {stem(w) for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 2}
+    q_stems = {stem(w) for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 2 and w not in STOP}
     text = text if len(text) <= max_chars else text[:max_chars].rsplit(" ", 1)[0] + " …"
     def repl(m):
         w = m.group(0)
-        return f"<mark>{w}</mark>" if stem(w.lower()) in q_stems else w
+        lw = w.lower()
+        return f"<mark>{w}</mark>" if lw not in STOP and stem(lw) in q_stems else w
     return re.sub(r"[A-Za-z0-9]+", repl, html.escape(text))
+
+
+def md_escape(text: str) -> str:
+    """Escape Markdown so titles like M*A*S*H render literally."""
+    return re.sub(r"([\\`*_\[\]#|~])", r"\\\1", str(text))
 
 
 def film_line(mid: int) -> str:
     m = movies.loc[mid]
-    return f"**{m.title}** ({m.year}) · {m.origin} · dir. {m.director} · _{m.genre}_"
+    return f"**{md_escape(m.title)}** ({m.year}) · {m.origin} · dir. {m.director} · _{m.genre}_"
 
 
 def show_info(info, applied, timings):
@@ -135,10 +141,14 @@ with tab_ask:
 
     if question:
         with st.spinner("Retrieving and generating…"):
-            out = answer(engine, question, llm_cfg, movie_ids=[chosen] if chosen is not None else None, k=5)
-        log_event({"tab": "ask", "query": question, "movie": chosen, "backend": backend, "alpha": out["info"].alpha,
+            # the sidebar mode and α always apply; its filters only when searching all films
+            ask_kw = dict(mode=mode, alpha=alpha, ui_filters=ui_filters if chosen is None else {})
+            out = answer(engine, question, llm_cfg, movie_ids=[chosen] if chosen is not None else None, k=5,
+                         **ask_kw)
+        log_event({"tab": "ask", "query": question, "mode": mode, "movie": chosen, "backend": backend, "alpha": out["info"].alpha,
                    "n_hits": len(out["hits"]), "error": out["error"],
-                   "bad_citations": len(out["bad_citations"]), **out["timings"]})
+                   "n_citations": len(out["citations"]), "bad_citations": len(out["bad_citations"]),
+                   **out["timings"]})
         show_info(out["info"], {}, out["timings"])
 
         if out["answer"]:
@@ -146,8 +156,10 @@ with tab_ask:
             st.success(body)
             if out["bad_citations"]:
                 st.warning(f"⚠️ The answer cites passages that weren't retrieved: {', '.join(out['bad_citations'])}")
+            elif not out["citations"]:
+                st.warning("⚠️ The answer doesn't cite any passage, so it can't be checked against the sources.")
             else:
-                st.caption("✅ every citation points to a retrieved passage")
+                st.caption(f"✅ all {len(out['citations'])} citations point to retrieved passages")
         elif out["error"]:
             st.error(out["error"] + " Showing the retrieved passages only.")
         elif backend == "none":
@@ -155,7 +167,7 @@ with tab_ask:
 
         st.markdown("#### Sources")
         for c, s in out["hits"]:
-            with st.expander(f"`[{c['chunk_id']}]` {movies.loc[c['movie_id']].title} ({movies.loc[c['movie_id']].year}) · score {s:.3f}"):
+            with st.expander(f"`[{c['chunk_id']}]` {md_escape(movies.loc[c['movie_id']].title)} ({movies.loc[c['movie_id']].year}) · score {s:.3f}"):
                 st.markdown(highlight(c["body"], question, max_chars=3000), unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------- tab 3: monitoring

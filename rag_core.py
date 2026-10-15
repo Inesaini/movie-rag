@@ -60,6 +60,7 @@ def validate(raw: pd.DataFrame) -> pd.DataFrame:
     df["mojibake_fixed"] = cleaned.map(lambda t: t[1])
     df["n_citations"] = cleaned.map(lambda t: t[2])
     df["n_words"] = df["plot"].str.split().str.len().fillna(0).astype(int)
+    df["title"] = df["title"].astype(str).str.strip()
     for col in ("director", "cast", "genre", "origin"):
         df[col] = df[col].fillna("unknown").astype(str).str.strip()
     df["missing_meta"] = df[["director", "cast", "genre"]].apply(
@@ -365,7 +366,8 @@ class Engine:
 
 # --------------------------------------------------------------------------- generation
 PROMPT = """Answer the question using ONLY the movie plot passages below.
-Cite the passages you use as [id]. If the answer isn't in the passages, say "I don't know".
+After every sentence of your answer, cite the passages it comes from as [id], for example [123#0].
+If the answer isn't in the passages, say "I don't know".
 Answer briefly, in the language of the question.
 
 PASSAGES:
@@ -401,9 +403,10 @@ def call_llm(prompt: str, cfg: LLMConfig) -> str:
     raise ValueError("no LLM backend")
 
 
-def answer(engine: Engine, question: str, cfg: LLMConfig, movie_ids=None, k: int = 5) -> dict:
-    hits, info, timings = engine.search_chunks(question, k=k, movie_ids=movie_ids)
-    out = {"hits": hits, "info": info, "timings": timings, "answer": None, "error": None, "bad_citations": []}
+def answer(engine: Engine, question: str, cfg: LLMConfig, movie_ids=None, k: int = 5, **kw) -> dict:
+    hits, info, timings = engine.search_chunks(question, k=k, movie_ids=movie_ids, **kw)
+    out = {"hits": hits, "info": info, "timings": timings, "answer": None, "error": None,
+           "citations": [], "bad_citations": []}
     if cfg.backend == "none" or not hits:
         return out
     context = "\n\n".join(f"[{c['chunk_id']}] {c['text']}" for c, _ in hits)
@@ -419,6 +422,7 @@ def answer(engine: Engine, question: str, cfg: LLMConfig, movie_ids=None, k: int
     timings["llm_ms"] = 1000 * (time.perf_counter() - t)
     cited = set(re.findall(r"\[(\d+#\d+)\]", text))
     out["answer"] = text
+    out["citations"] = sorted(cited)
     out["bad_citations"] = sorted(cited - {c["chunk_id"] for c, _ in hits})
     return out
 
