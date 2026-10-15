@@ -256,6 +256,8 @@ class Engine:
         self.c_genre = np.array(m.genre.str.lower().tolist(), dtype=str)
         self.analyze = QueryAnalyzer(self.movies)
         self.graph = self._build_graph()
+        # load the embedding model and run one query now, so the first search doesn't pay for it
+        embed_query("warm up", self.model_name)
         log.info("engine loaded: %d films, %d chunks in %.1fs", len(self.movies), len(self.chunks), time.time() - t0)
 
     # ---- graph
@@ -309,6 +311,12 @@ class Engine:
             a = alpha if (mode == "hybrid" and alpha is not None) else info.alpha
             s = a * de + (1 - a) * bm
         info.alpha = a
+        if mode == "bm25":
+            info.reason = "not used, BM25 only (mode set in the sidebar)"
+        elif mode == "dense":
+            info.reason = "not used, dense only (mode set in the sidebar)"
+        elif mode == "hybrid":
+            info.reason = f"not used, fixed α = {a:.2f} (hybrid mode set in the sidebar)"
         filt = dict(info.filters) if (auto_filters and mode == "adaptive") else {}
         filt.update({k: v for k, v in (ui_filters or {}).items() if v})   # UI filters win
         applied = {}
@@ -355,12 +363,14 @@ class Engine:
 
     def search_chunks(self, query: str, k: int = 5, movie_ids=None, **kw):
         timings: dict = {}
+        t0 = time.perf_counter()
         ui = dict(kw.pop("ui_filters", {}) or {})
         if movie_ids is not None:
             ui["movie_ids"] = list(movie_ids)
         s, info, applied = self.chunk_scores(query, ui_filters=ui, auto_filters=movie_ids is None,
                                              timings=timings, **kw)
         top = np.argsort(-s)[:k]
+        timings["total_ms"] = 1000 * (time.perf_counter() - t0)
         return [(self.chunks[i], float(s[i])) for i in top if s[i] >= 0], info, timings
 
 
