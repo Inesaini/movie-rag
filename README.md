@@ -6,23 +6,76 @@ The corpus is the Kaggle [Wikipedia Movie Plots](https://www.kaggle.com/datasets
 
 The experiments behind the design choices are in [`notebooks/evaluation.ipynb`](notebooks/evaluation.ipynb).
 
-## Screenshots
+## Using the app
 
-**Find a movie, adaptive mode.** The query analyzer reads "a 90s horror movie about a cursed videotape" as a vague description and sets α = 0.6, so dense matching is favoured. The year range and genre set in the sidebar override the filters found in the sentence.
+`streamlit run app.py` opens a page with a sidebar of settings and three tabs: **Find a movie**, **Ask about a movie** and **Monitoring**. The sidebar settings apply to both search tabs.
 
-![Find a movie with adaptive retrieval and filters](screenshots/find-adaptive-filters.png)
+### Sidebar
 
-**Find a movie, BM25 only.** The same query and filters with lexical matching alone (α = 0). Matching terms are highlighted, and each result has a score, the full plot, "more like this" from the knowledge graph, and a shortcut to ask about it.
+The header shows what's loaded: number of films, number of passages and the embedding model.
 
-![Find a movie with BM25 retrieval](screenshots/find-bm25.png)
+**Retrieval**
 
-**Ask about a movie.** A question restricted to *V/H/S* (2012), answered by Llama 3.1 8B through Ollama. Every citation is checked against the retrieved passages, which are listed below the answer with their chunk ids and scores.
+| Setting | What it does |
+|---|---|
+| Mode | `adaptive` (default): the query analyzer chooses the dense weight α and pulls filters out of the query text. `hybrid`: fixed α from the slider below. `dense`: embeddings only (α = 1). `bm25`: keyword matching only (α = 0). |
+| Dense weight α | Weight on dense scores in `hybrid` mode; disabled in the other modes. |
+| Results | Number of films returned by **Find a movie** (3–20). |
+| Graph boost | If the query names a director or actor, films linked to them in the knowledge graph get a +0.5 bonus (marked 🕸️). |
 
-![Grounded answer with cited source passages](screenshots/ask-cited-answer.png)
+**Filters.** Release year range, origin (one or more, such as American, Bollywood or Japanese) and genre. Sidebar filters always apply and override any filter the analyzer finds in the query. In the Ask tab they only apply when no film is selected. If a filter matches nothing, it's ignored and the analyzer note says so.
 
-**Monitoring.** Query count, retrieval and LLM latency, per-stage latency over time and the number of queries per retrieval mode, all read from `logs/queries.jsonl`.
+**Answer generation.** The LLM backend: `ollama` (local, default `llama3.1:8b`), `openai` (any OpenAI-compatible server: OpenAI, LM Studio, vLLM, Groq; takes a server URL and API key) or `none` (retrieval only, no generated answer).
 
-![Monitoring tab with latency and query counts](screenshots/monitoring.png)
+### Find a movie
+
+Type a description of the film, or click one of the four example queries (one is in French, to show cross-lingual search). Above the results, a row of metrics shows the dense weight α that was used, the filters that were applied and the retrieval time. Below it, a note explains the analyzer's choice, such as "vague description → favour semantic (dense) matching", or says it wasn't used because the mode was set in the sidebar.
+
+Each result shows:
+
+- rank, title, year, origin, director and genre, with the fused score on the right (🕸️ if the graph boost applied);
+- the film's best-matching passage, with query words highlighted (stemmed, so "curses" matches "cursed"; stop words are ignored);
+- **Full plot**: the whole cleaned plot and a link to the Wikipedia article;
+- **More like this**: five related films found by personalised PageRank over shared directors, actors and genres;
+- **Ask about it →**: selects the film in the Ask tab.
+
+In adaptive mode, the analyzer reads "a 90s horror movie about a cursed videotape" as a vague description and sets α = 0.6. Here the year range and genre come from the sidebar:
+
+![Find a movie in adaptive mode](screenshots/find-adaptive-filters.png)
+
+The same query in `bm25` mode with the origin set to American. α is 0 and the note says the analyzer wasn't used:
+
+![Find a movie in BM25 mode](screenshots/find-bm25.png)
+
+### Ask about a movie
+
+Pick a film (or leave it on "All films" to search every plot) and ask a question in any language. The top 5 passages go to the LLM, which must answer only from them and cite each passage it uses as `[movie_id#n]`. The metrics row adds the LLM's response time.
+
+Below the answer, the app checks the citations:
+
+- ✅ all citations point to passages that were actually retrieved;
+- ⚠️ the answer cites a passage it was never given (an invented citation);
+- ⚠️ the answer cites nothing, so it can't be checked.
+
+The **Sources** list shows each retrieved passage with its id and score, with question words highlighted, so you can check the answer yourself. If the LLM server can't be reached, or the backend is `none`, you still get the passages.
+
+![Grounded answer with checked citations](screenshots/ask-cited-answer.png)
+
+### Monitoring
+
+Every search and question is logged to `logs/queries.jsonl`. This tab reads the log and shows:
+
+- the number of queries, median and p95 retrieval time, and median LLM time;
+- latency per stage (BM25, dense, LLM, total) for each query;
+- the number of queries per retrieval mode;
+- the 50 most recent queries with their tab, mode, α, filters and timings;
+- the ingestion validation report: how many documents were kept, flagged or dropped, and why.
+
+The embedding model loads when the app starts, so the first search is as fast as the rest.
+
+![Monitoring: metrics, latency and queries by mode](screenshots/monitoring.png)
+
+![Monitoring: recent queries and validation report](screenshots/monitoring-log.png)
 
 ## Setup
 
