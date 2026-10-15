@@ -58,7 +58,8 @@ flowchart LR
 Evaluated on 10k films with 300 "find the movie" queries (plot sentences with names masked) and 300 DuoRC plot questions, each also machine-translated to French. Metric: MRR (1.0 = the right answer is always ranked first).
 
 ```mermaid
-xychart-beta
+%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "#2f6fdf"}}}}%%
+xychart-beta horizontal
     title "Find the movie from a French description (MRR)"
     x-axis ["BM25", "Dense", "Hybrid", "Adaptive"]
     y-axis "MRR" 0 --> 1
@@ -66,7 +67,8 @@ xychart-beta
 ```
 
 ```mermaid
-xychart-beta
+%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "#2f6fdf"}}}}%%
+xychart-beta horizontal
     title "Answer a plot question: whole corpus vs. film selected (MRR, hybrid)"
     x-axis ["Open, EN", "Open, FR", "Film selected, EN", "Film selected, FR"]
     y-axis "MRR" 0 --> 1
