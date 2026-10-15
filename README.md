@@ -6,6 +6,20 @@ The corpus is the Kaggle [Wikipedia Movie Plots](https://www.kaggle.com/datasets
 
 The experiments behind the design choices are in [`notebooks/evaluation.ipynb`](notebooks/evaluation.ipynb).
 
+## Screenshots
+
+**Find a movie, adaptive mode.** The query analyzer reads "a 90s horror movie about a cursed videotape", sets α = 0.6 (vague description, so dense matching is favoured) and applies the decade, origin and genre filters it found in the sentence.
+
+![Find a movie with adaptive retrieval and extracted filters](screenshots/find-adaptive-filters.png)
+
+**Find a movie, BM25 only.** The same query with lexical matching alone and no filters: matching terms are highlighted and each result has a score, the full plot, "more like this" from the knowledge graph, and a shortcut to ask about it.
+
+![Find a movie with BM25 retrieval](screenshots/find-bm25.png)
+
+**Ask about a movie.** A question restricted to *Rings* (2016), answered by Llama 3.1 8B through Ollama. Every citation is checked against the retrieved passages, which are listed below the answer with their chunk ids and scores.
+
+![Grounded answer with cited source passages](screenshots/ask-cited-answer.png)
+
 ## Setup
 
 ```bash
