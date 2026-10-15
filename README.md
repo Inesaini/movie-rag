@@ -132,11 +132,12 @@ For a question, the top 5 chunks (restricted to one film if the user picked one)
 
 ```
 Answer the question using ONLY the movie plot passages below.
-Cite the passages you use as [id]. If the answer isn't in the passages, say "I don't know".
+After every sentence of your answer, cite the passages it comes from as [id], for example [123#0].
+If the answer isn't in the passages, say "I don't know".
 Answer briefly, in the language of the question.
 ```
 
-Temperature is 0. After generation, every `[movie_id#n]` in the answer is checked against the ids that were actually retrieved, and any citation to a passage the model never saw is flagged in the UI. Backends: Ollama (`/api/generate`), any OpenAI-compatible `/chat/completions` endpoint (LM Studio, vLLM, Groq, OpenAI), or none.
+Temperature is 0. After generation, every `[movie_id#n]` in the answer is checked against the ids that were actually retrieved, and any citation to a passage the model never saw is flagged in the UI. An answer with no citations at all is flagged too, since it can't be checked. Backends: Ollama (`/api/generate`), any OpenAI-compatible `/chat/completions` endpoint (LM Studio, vLLM, Groq, OpenAI), or none.
 
 ### 6. Monitoring
 
